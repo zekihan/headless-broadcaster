@@ -64,6 +64,7 @@ func Broadcast(w http.ResponseWriter, r *http.Request) {
 	}
 
 	results := make([]*proxy.Result, 0)
+
 	for _, ip := range hostIPs {
 		result, proxyErr := proxy.RequestToIP(r.Context(), ip, parsedURL, r.Method, body, headers)
 		if web.CheckError(
