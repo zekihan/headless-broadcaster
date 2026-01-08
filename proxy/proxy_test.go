@@ -27,7 +27,7 @@ func TestParseResponse_JSON(t *testing.T) {
 		Body:       io.NopCloser(bytes.NewReader([]byte(body))),
 	}
 	result := &Result{}
-	parseResponse(resp, result)
+	parseResponse(nil, resp, result)
 
 	if result.StatusCode != http.StatusCreated {
 		t.Errorf("expected status 201, got %d", result.StatusCode)
@@ -50,7 +50,7 @@ func TestParseResponse_Text(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 	result := &Result{}
-	parseResponse(resp, result)
+	parseResponse(nil, resp, result)
 
 	if result.StatusCode != http.StatusAccepted {
 		t.Errorf("expected status 202, got %d", result.StatusCode)
@@ -71,7 +71,7 @@ func TestParseResponse_ReadError(t *testing.T) {
 		Body:       errorReader{},
 	}
 	result := &Result{}
-	parseResponse(resp, result)
+	parseResponse(nil, resp, result)
 
 	if result.StatusCode != http.StatusInternalServerError {
 		t.Errorf("expected status 500, got %d", result.StatusCode)

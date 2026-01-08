@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -13,8 +15,6 @@ import (
 	"github.com/zekihan/headless-broadcaster/internal/commons/web/errorroutes"
 	"github.com/zekihan/headless-broadcaster/internal/commons/web/health"
 	"github.com/zekihan/headless-broadcaster/internal/commons/web/ping"
-
-	log "github.com/sirupsen/logrus"
 
 	"github.com/zekihan/headless-broadcaster/config"
 	"github.com/zekihan/headless-broadcaster/routes/api"
@@ -33,7 +33,11 @@ var (
 func init() {
 	err := environment.LoadEnvironmentFile()
 	if err != nil {
-		log.Errorf("Error loading environment file: %v", err)
+		slog.ErrorContext(
+			nil,
+			"Failed to load environment file",
+			slog.Any("error", err),
+		)
 		os.Exit(1)
 	}
 
@@ -41,15 +45,10 @@ func init() {
 	cfg = config.GetConfig()
 
 	// Init logger.
-	err = utils.InitLogger(&utils.LoggerConfig{
-		Path:          cfg.LogConfig.Path,
-		Level:         cfg.LogConfig.Level,
-		AddMethodName: cfg.LogConfig.AddMethodName,
+	utils.InitLogger(&utils.LoggerConfig{
+		Level:     cfg.LogConfig.Level,
+		AddSource: cfg.LogConfig.AddSource,
 	})
-	if err != nil {
-		log.Errorf("Error initializing logger: %v", err)
-		os.Exit(1)
-	}
 
 	// Init middleware.
 	stdChain = alice.New(middleware.RecoverHandler, middleware.Logging)
@@ -57,8 +56,8 @@ func init() {
 }
 
 func main() {
-	log.Info("Starting headless broadcaster server")
-	log.Info(utils.GetStartupInfo())
+	slog.InfoContext(context.Background(), "Starting headless broadcaster server")
+	utils.LogVersionInfo(context.Background())
 
 	// API routes.
 	http.HandleFunc("/api/ping", ping.GetPing)
@@ -79,7 +78,7 @@ func main() {
 
 	port := cfg.WebConfig.Port
 	host := cfg.WebConfig.Host
-	log.Infof("Starting server on %s:%d", host, port)
+	slog.InfoContext(context.Background(), fmt.Sprintf("Starting server on %s:%d", host, port))
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", host, port),
@@ -90,7 +89,7 @@ func main() {
 
 	err := srv.ListenAndServe()
 	if err != nil {
-		log.Errorf("Failed to start server: %v", err)
+		slog.ErrorContext(context.Background(), "Failed to start server", slog.Any("error", err))
 		os.Exit(1)
 	}
 }

@@ -1,11 +1,10 @@
 package config
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/sirupsen/logrus"
 )
 
 // setup resets global state and schedules cleanup of env vars.
@@ -30,12 +29,12 @@ func TestGetDefaultConfig(t *testing.T) {
 		t.Errorf("expected default APIKey empty, got %s", cfg.WebConfig.APIKey)
 	}
 
-	if cfg.LogConfig.Level != logrus.WarnLevel {
+	if cfg.LogConfig.Level != slog.LevelWarn {
 		t.Errorf("expected default log level Warn, got %d", cfg.LogConfig.Level)
 	}
 
-	if cfg.LogConfig.AddMethodName {
-		t.Errorf("expected default AddMethodName false, got true")
+	if cfg.LogConfig.AddSource {
+		t.Errorf("expected default AddSource false, got true")
 	}
 }
 
@@ -89,7 +88,7 @@ web:
   apiKey: "abc123"
 log:
   level: "info"
-  addMethodName: true
+  addSource: true
   path: "/var/log/app.log"
 `
 
@@ -128,12 +127,8 @@ log:
 		t.Errorf("expected level string info, got %s", cfg.LogConfig.LevelStr)
 	}
 
-	if !cfg.LogConfig.AddMethodName {
-		t.Errorf("expected add_method_name true, got %t", cfg.LogConfig.AddMethodName)
-	}
-
-	if cfg.LogConfig.Path != "/var/log/app.log" {
-		t.Errorf("expected path /var/log/app.log, got %s", cfg.LogConfig.Path)
+	if !cfg.LogConfig.AddSource {
+		t.Errorf("expected add_method_name true, got %t", cfg.LogConfig.AddSource)
 	}
 }
 
@@ -147,7 +142,7 @@ web:
   apiKey: "filekey"
 log:
   level: "warn"
-  addMethodName: false
+  addSource: false
   path: "/file.log"
 `
 
@@ -187,15 +182,11 @@ log:
 		t.Errorf("expected env override api_key envkey, got %s", cfg.WebConfig.APIKey)
 	}
 
-	if cfg.LogConfig.Level != logrus.ErrorLevel {
+	if cfg.LogConfig.Level != slog.LevelError {
 		t.Errorf("expected log level error, got %d", cfg.LogConfig.Level)
 	}
 
-	if !cfg.LogConfig.AddMethodName {
-		t.Errorf("expected add_method_name true, got %t", cfg.LogConfig.AddMethodName)
-	}
-
-	if cfg.LogConfig.Path != "/env.log" {
-		t.Errorf("expected log path /env.log, got %s", cfg.LogConfig.Path)
+	if !cfg.LogConfig.AddSource {
+		t.Errorf("expected AddSource true, got %t", cfg.LogConfig.AddSource)
 	}
 }

@@ -7,13 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -29,7 +28,11 @@ func RequestToIP(
 	headers map[string]string,
 ) (*Result, error) {
 	result := Result{IP: ip}
-	log.Debug("Broadcasting to ", ip, " ", parsedURL.String())
+	slog.DebugContext(ctx, "Proxying request",
+		slog.String("method", method),
+		slog.String("url", parsedURL.String()),
+		slog.String("ip", ip),
+	)
 
 	bodyReader := bytes.NewReader([]byte{})
 	if body != nil {
@@ -49,24 +52,29 @@ func RequestToIP(
 
 	response, err := client.Do(request)
 	if err != nil {
-		log.Error("Error broadcasting to ", parsedURL.Hostname(), err)
+		slog.ErrorContext(ctx, "Error making proxied request",
+			slog.String("method", method),
+			slog.String("url", parsedURL.String()),
+			slog.String("ip", ip),
+			slog.Any("error", err),
+		)
 		result.Err = err.Error()
 	}
 
 	if response != nil {
-		parseResponse(response, &result)
+		parseResponse(ctx, response, &result)
 	}
 
 	return &result, nil
 }
 
-func parseResponse(response *http.Response, result *Result) {
+func parseResponse(ctx context.Context, response *http.Response, result *Result) {
 	result.StatusCode = response.StatusCode
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		log.Error("Error reading response body ", err)
+		slog.ErrorContext(ctx, "Error reading response body", slog.Any("error", err))
 		result.Err = err.Error()
 
 		return
@@ -82,7 +90,7 @@ func parseResponse(response *http.Response, result *Result) {
 
 	err = json.Unmarshal(body, &jsonBody)
 	if err != nil {
-		log.Error("Error unmarshalling response body ", err)
+		slog.ErrorContext(ctx, "Error unmarshaling JSON response", slog.Any("error", err))
 		result.Err = err.Error()
 	} else {
 		result.Result = jsonBody

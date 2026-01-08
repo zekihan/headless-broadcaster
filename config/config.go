@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/sethvargo/go-envconfig"
-	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -34,10 +35,9 @@ type WebConfig struct {
 }
 
 type LogConfig struct {
-	LevelStr      string       `yaml:"level"         env:"LEVEL"`
-	Path          string       `yaml:"path"          env:"PATH"`
-	Level         logrus.Level `yaml:"-"`
-	AddMethodName bool         `yaml:"addMethodName" env:"ADD_METHOD_NAME"`
+	LevelStr  string     `yaml:"level"     env:"LEVEL"`
+	Level     slog.Level `yaml:"-"`
+	AddSource bool       `yaml:"addSource" env:"ADD_SOURCE"`
 }
 
 func GetConfig() *Config {
@@ -56,9 +56,23 @@ func GetConfig() *Config {
 		}
 
 		if cfg.LogConfig.LevelStr != "" {
-			level, err := logrus.ParseLevel(cfg.LogConfig.LevelStr)
-			if err != nil {
-				log.Fatalf("Failed to parse log level: %v", err)
+			level := slog.LevelInfo
+
+			switch strings.ToLower(cfg.LogConfig.LevelStr) {
+			case "debug":
+				level = slog.LevelDebug
+			case "info":
+				level = slog.LevelInfo
+			case "warn", "warning":
+				level = slog.LevelWarn
+			case "error":
+				level = slog.LevelError
+			default:
+				slog.ErrorContext(
+					ctx,
+					"Invalid log level in config, defaulting to info",
+					slog.String("level", cfg.LogConfig.LevelStr),
+				)
 			}
 
 			cfg.LogConfig.Level = level
@@ -137,8 +151,8 @@ func GetDefaultConfig() *Config {
 			APIKey: "",
 		},
 		LogConfig: LogConfig{
-			Level:         logrus.WarnLevel,
-			AddMethodName: false,
+			Level:     slog.LevelWarn,
+			AddSource: false,
 		},
 	}
 }
