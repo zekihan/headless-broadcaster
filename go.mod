@@ -1,6 +1,6 @@
 module github.com/zekihan/headless-broadcaster
 
-go 1.26.2
+go 1.26.3
 
 require (
 	github.com/justinas/alice v1.2.0
