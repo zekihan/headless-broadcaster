@@ -34,7 +34,7 @@ func init() {
 	err := environment.LoadEnvironmentFile()
 	if err != nil {
 		slog.ErrorContext(
-			nil,
+			context.Background(),
 			"Failed to load environment file",
 			slog.Any("error", err),
 		)

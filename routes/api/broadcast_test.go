@@ -99,7 +99,7 @@ func TestResult_JSONMarshaling(t *testing.T) {
 
 // Test Broadcast handler error on empty URL.
 func TestBroadcast_EmptyURL(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 	Broadcast(rr, req)
 
@@ -110,7 +110,12 @@ func TestBroadcast_EmptyURL(t *testing.T) {
 
 // Test Broadcast handler error on invalid URL.
 func TestBroadcast_InvalidURL(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/?url=http://%41:80:invalid-url", http.NoBody)
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"/?url=http://%41:80:invalid-url",
+		http.NoBody,
+	)
 	rr := httptest.NewRecorder()
 	Broadcast(rr, req)
 
@@ -122,7 +127,12 @@ func TestBroadcast_InvalidURL(t *testing.T) {
 // Test Broadcast handler error on unresolvable host.
 func TestBroadcast_UnresolvableHost(t *testing.T) {
 	// .invalid is guaranteed non-resolvable.
-	req := httptest.NewRequest(http.MethodGet, "/?url=http://nonexistent.invalid/", http.NoBody)
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"/?url=http://nonexistent.invalid/",
+		http.NoBody,
+	)
 	rr := httptest.NewRecorder()
 	Broadcast(rr, req)
 
@@ -147,7 +157,12 @@ func TestBroadcast(t *testing.T) {
 	defer mockServer.Close()
 
 	// Use the mock server's URL.
-	req := httptest.NewRequest(http.MethodGet, "/?url="+mockServer.URL, http.NoBody)
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"/?url="+mockServer.URL,
+		http.NoBody,
+	)
 	req.Header.Add("Authorization", "Bearer test-token")
 
 	rr := httptest.NewRecorder()
