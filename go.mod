@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/justinas/alice v1.2.0
-	github.com/sethvargo/go-envconfig v1.4.2
+	github.com/sethvargo/go-envconfig v1.4.3
 	gopkg.in/yaml.v3 v3.0.1
 )
 
