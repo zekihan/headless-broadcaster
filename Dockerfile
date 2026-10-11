@@ -20,7 +20,7 @@ FROM scratch AS final
 
 COPY --from=builder /usr/bin/headless-broadcaster /usr/bin/headless-broadcaster
 
-ENTRYPOINT ["headless-broadcaster"]
+ENTRYPOINT ["/usr/bin/headless-broadcaster"]
 
 LABEL org.opencontainers.image.source="https://github.com/zekihan/headless-broadcaster" \
     org.opencontainers.image.licenses="AGPL-3.0" \
