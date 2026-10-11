@@ -25,5 +25,5 @@ jobs:
         with:
           version: v2.18.2
           args: check
-      - run: make lint test build
+      - run: make lint test build audit
       - run: git diff --exit-code
