@@ -27,3 +27,7 @@ dist/
 # Others
 tmp/
 .env
+
+.override.env
+config.yaml
+.DS_Store

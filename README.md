@@ -1,19 +1,22 @@
-<h1 align="center" id="title">headless-broadcaster</h1>
+# headless-broadcaster
 
-<p id="description">Proxies requests to all ips under the same dns</p>
+Broadcast an HTTP request to every IP address resolved for a hostname.
 
-<h2>🧐 Features</h2>
+Configure the server with `config.yaml` or `HB__WEB_HOST`, `HB__WEB_PORT`, and
+`HB__WEB_API_KEY`. The default listener is `127.0.0.1:8080`. Send requests to
+`/broadcast?url=https://example.com/path` with an `X-Api-Key` header when an API
+key is configured. `/api/ping` and `/api/health` are public health endpoints.
 
-Here're some of the project's best features:
+This tool can reach addresses accessible from its host and forwards request
+headers and bodies. Run it on a trusted network with an API key. An empty key
+allows unauthenticated requests. Outbound TLS certificate verification is
+currently disabled. Avoid query-string authentication because request URLs
+can appear in logs.
 
-*   Proxy requests to all ips under the same dns
+Run `make lint test build` and `goreleaser check` to validate changes.
+`VERSION` and the release tag must agree. Releases publish binaries and
+containers for Docker Hub and GHCR; only tag pushes publish artifacts.
+The release script creates a local commit and signed tag; publishing requires
+an explicit push.
 
-<h2>💻 Built with</h2>
-
-Technologies used in the project:
-
-*   go
-
-<h2>🛡️ License:</h2>
-
-This project is licensed under the GNU Affero General Public License v3.0
+Licensed under the GNU Affero General Public License v3.0.
