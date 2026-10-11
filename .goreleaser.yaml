@@ -96,6 +96,7 @@ archives:
     files:
       - 'LICENSE*'
       - 'license*'
+      - 'THIRD_PARTY_LICENSES.txt'
 
 snapshot:
   version_template: "{{ incpatch .Version }}-SNAPSHOT-{{.ShortCommit}}"
