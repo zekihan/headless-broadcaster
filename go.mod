@@ -8,7 +8,6 @@ require (
 	github.com/justinas/alice v1.2.0
 	github.com/lmittmann/tint v1.2.0
 	github.com/mattn/go-isatty v0.0.24
-	github.com/sethvargo/go-envconfig v1.4.3
 	github.com/sethvargo/go-envconfig/v2 v2.0.0
 	gopkg.in/yaml.v3 v3.0.1
 )
