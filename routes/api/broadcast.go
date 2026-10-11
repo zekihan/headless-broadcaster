@@ -9,7 +9,6 @@ import (
 	"net/url"
 
 	"github.com/zekihan/headless-broadcaster/internal/commons/web"
-
 	"github.com/zekihan/headless-broadcaster/proxy"
 )
 
@@ -19,6 +18,7 @@ func Broadcast(w http.ResponseWriter, r *http.Request) {
 	urlFromQuery := r.URL.Query().Get("url")
 	if urlFromQuery == "" {
 		web.CheckError(
+			r.Context(),
 			w,
 			errMissingURLParam,
 			http.StatusBadRequest,
@@ -29,7 +29,7 @@ func Broadcast(w http.ResponseWriter, r *http.Request) {
 	}
 
 	parsedURL, err := url.Parse(urlFromQuery)
-	if web.CheckError(w, err, http.StatusBadRequest, "Invalid URL") {
+	if web.CheckError(r.Context(), w, err, http.StatusBadRequest, "Invalid URL") {
 		return
 	}
 
@@ -38,7 +38,13 @@ func Broadcast(w http.ResponseWriter, r *http.Request) {
 	resolver := &net.Resolver{}
 
 	hostIPs, err := resolver.LookupHost(r.Context(), host)
-	if web.CheckError(w, err, http.StatusInternalServerError, "Failed to resolve host") {
+	if web.CheckError(
+		r.Context(),
+		w,
+		err,
+		http.StatusInternalServerError,
+		"Failed to resolve host",
+	) {
 		return
 	}
 
@@ -49,6 +55,7 @@ func Broadcast(w http.ResponseWriter, r *http.Request) {
 
 		body, err = io.ReadAll(r.Body)
 		if web.CheckError(
+			r.Context(),
 			w,
 			err,
 			http.StatusInternalServerError,
@@ -68,6 +75,7 @@ func Broadcast(w http.ResponseWriter, r *http.Request) {
 	for _, ip := range hostIPs {
 		result, proxyErr := proxy.RequestToIP(r.Context(), ip, parsedURL, r.Method, body, headers)
 		if web.CheckError(
+			r.Context(),
 			w,
 			proxyErr,
 			http.StatusInternalServerError,
@@ -86,11 +94,17 @@ func Broadcast(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resultBytes, err := json.Marshal(result)
-	if web.CheckError(w, err, http.StatusInternalServerError, "Failed to marshal result") {
+	if web.CheckError(
+		r.Context(),
+		w,
+		err,
+		http.StatusInternalServerError,
+		"Failed to marshal result",
+	) {
 		return
 	}
 
-	web.Write(w, resultBytes)
+	web.Write(r.Context(), w, resultBytes)
 }
 
 type Result struct {

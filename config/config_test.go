@@ -166,7 +166,7 @@ log:
 	t.Setenv(EnvKeyPrefix+"WEB_PORT", "4321")
 	t.Setenv(EnvKeyPrefix+"WEB_API_KEY", "envkey")
 	t.Setenv(EnvKeyPrefix+"LOG_LEVEL", "error")
-	t.Setenv(EnvKeyPrefix+"LOG_ADD_METHOD_NAME", "true")
+	t.Setenv(EnvKeyPrefix+"LOG_ADD_SOURCE", "true")
 	t.Setenv(EnvKeyPrefix+"LOG_PATH", "/env.log")
 
 	cfg := GetConfig()

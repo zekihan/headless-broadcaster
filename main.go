@@ -9,14 +9,14 @@ import (
 	"time"
 
 	"github.com/justinas/alice"
+
+	"github.com/zekihan/headless-broadcaster/config"
 	"github.com/zekihan/headless-broadcaster/internal/commons/environment"
 	"github.com/zekihan/headless-broadcaster/internal/commons/middleware"
 	"github.com/zekihan/headless-broadcaster/internal/commons/utils"
 	"github.com/zekihan/headless-broadcaster/internal/commons/web/errorroutes"
 	"github.com/zekihan/headless-broadcaster/internal/commons/web/health"
 	"github.com/zekihan/headless-broadcaster/internal/commons/web/ping"
-
-	"github.com/zekihan/headless-broadcaster/config"
 	"github.com/zekihan/headless-broadcaster/routes/api"
 )
 
