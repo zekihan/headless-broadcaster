@@ -23,7 +23,7 @@ jobs:
           version: v2.15.0
       - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
-          version: v2.18.3
+          version: v2.19.0
           install-only: true
       - run: goreleaser check
       - run: make lint test build audit
