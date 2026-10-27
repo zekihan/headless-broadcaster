@@ -49,6 +49,8 @@ func RequestToIP(
 	}
 
 	client := getHTTPClient(ip)
+	// Each client owns a one-shot transport; release its pool after the body closes.
+	defer client.CloseIdleConnections()
 
 	response, err := client.Do(request)
 	if err != nil {

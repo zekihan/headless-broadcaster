@@ -20,3 +20,19 @@ The release script creates a local commit and signed tag; publishing requires
 an explicit push.
 
 Licensed under the GNU Affero General Public License v3.0.
+
+### Broadcast results and connection lifecycle
+
+A destination succeeds only when its final HTTP status is in the full 200–299
+range and no transport or response-body read error occurred. The response
+includes per-destination status/error details and total, success, and failed
+counts. The aggregate HTTP status is 200 when all destinations succeed and 500
+when any destination fails, including a truncated body received with status 200.
+An aggregate failure does not prove the operation was not applied upstream;
+inspect individual results before deciding whether a retry is safe.
+
+Each destination request owns its HTTP client and transport. Once its response
+body has been read and closed (or the request fails), idle connections are
+explicitly closed. Connections are not pooled across destinations or broadcasts;
+the target-IP dial binding, request cancellation, and 30-second timeout remain
+unchanged. Regression tests use local HTTP fixtures only.

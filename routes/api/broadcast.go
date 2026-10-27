@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -15,6 +16,15 @@ import (
 var errMissingURLParam = errors.New("missing 'url' query parameter")
 
 func Broadcast(w http.ResponseWriter, r *http.Request) {
+	resolver := &net.Resolver{}
+	broadcast(w, r, resolver.LookupHost)
+}
+
+func broadcast(
+	w http.ResponseWriter,
+	r *http.Request,
+	lookupHost func(context.Context, string) ([]string, error),
+) {
 	urlFromQuery := r.URL.Query().Get("url")
 	if urlFromQuery == "" {
 		web.CheckError(
@@ -35,9 +45,7 @@ func Broadcast(w http.ResponseWriter, r *http.Request) {
 
 	host := parsedURL.Hostname()
 
-	resolver := &net.Resolver{}
-
-	hostIPs, err := resolver.LookupHost(r.Context(), host)
+	hostIPs, err := lookupHost(r.Context(), host)
 	if web.CheckError(
 		r.Context(),
 		w,
@@ -124,7 +132,8 @@ func NewResult(host string, results []*proxy.Result) *Result {
 	failedCount := 0
 
 	for _, res := range results {
-		if res.StatusCode == http.StatusOK {
+		if res.Err == "" && res.StatusCode >= http.StatusOK &&
+			res.StatusCode < http.StatusMultipleChoices {
 			successCount++
 		} else {
 			failedCount++
