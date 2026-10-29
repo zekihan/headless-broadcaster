@@ -113,10 +113,6 @@ func broadcast(
 
 	result := NewResult(host, results)
 
-	if result.Failed() {
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-
 	resultBytes, err := json.Marshal(result)
 	if web.CheckError(
 		r.Context(),
@@ -126,6 +122,12 @@ func broadcast(
 		"Failed to marshal result",
 	) {
 		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if result.Failed() {
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
 	web.Write(r.Context(), w, resultBytes)
