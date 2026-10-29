@@ -15,7 +15,12 @@ import (
 	"github.com/zekihan/headless-broadcaster/proxy"
 )
 
-var errMissingURLParam = errors.New("missing 'url' query parameter")
+var (
+	errMissingURLParam    = errors.New("missing 'url' query parameter")
+	errInvalidDestination = errors.New(
+		"destination must be an absolute HTTP(S) URL with a hostname",
+	)
+)
 
 func Broadcast(w http.ResponseWriter, r *http.Request) {
 	resolver := &net.Resolver{}
@@ -42,6 +47,12 @@ func broadcast(
 
 	parsedURL, err := url.Parse(urlFromQuery)
 	if web.CheckError(r.Context(), w, err, http.StatusBadRequest, "Invalid URL") {
+		return
+	}
+
+	if !validDestinationURL(parsedURL) {
+		web.CheckError(r.Context(), w, errInvalidDestination, http.StatusBadRequest, "Invalid URL")
+
 		return
 	}
 
@@ -131,6 +142,10 @@ func broadcast(
 	}
 
 	web.Write(r.Context(), w, resultBytes)
+}
+
+func validDestinationURL(target *url.URL) bool {
+	return (target.Scheme == "http" || target.Scheme == "https") && target.Hostname() != ""
 }
 
 // upstreamHeaders removes reserved broadcaster credentials, preserving downstream auth.
