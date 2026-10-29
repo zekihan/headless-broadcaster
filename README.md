@@ -32,6 +32,11 @@ when any destination fails, including a truncated body received with status 200.
 An aggregate failure does not prove the operation was not applied upstream;
 inspect individual results before deciding whether a retry is safe.
 
+The broadcaster negotiates upstream response compression independently of the
+caller's `Accept-Encoding` header. Go's transport negotiates and decodes gzip
+before responses are parsed into aggregate JSON values or text. Invalid gzip is
+reported as a destination read error rather than a successful string payload.
+
 Each destination request owns its HTTP client and transport. Once its response
 body has been read and closed (or the request fails), idle connections are
 explicitly closed. Connections are not pooled across destinations or broadcasts;
