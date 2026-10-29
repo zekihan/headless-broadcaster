@@ -5,7 +5,9 @@ Broadcast an HTTP request to every IP address resolved for a hostname.
 Configure the server with `config.yaml` or `HB__WEB_HOST`, `HB__WEB_PORT`, and
 `HB__WEB_API_KEY`. The default listener is `127.0.0.1:8080`. Send requests to
 `/broadcast?url=https://example.com/path` with an `X-Api-Key` header when an API
-key is configured. The destination must be an absolute `http://` or `https://`
+key is configured. IPv6 listener hosts use the bare address in configuration
+(for example, `HB__WEB_HOST=::1`); brackets are added when constructing the listener.
+The destination must be an absolute `http://` or `https://`
 URL with a hostname; other forms receive HTTP 400 before DNS lookup or forwarding.
 `/api/ping` and `/api/health` are public health endpoints.
 
