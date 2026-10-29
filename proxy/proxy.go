@@ -47,6 +47,9 @@ func RequestToIP(
 	}
 
 	request.Header = headers.Clone()
+	// The aggregate contains decoded values, so let the transport negotiate and
+	// decode gzip itself. Forwarding Accept-Encoding disables automatic decoding.
+	request.Header.Del("Accept-Encoding")
 
 	client := getHTTPClient(ip) //nolint:contextcheck // Reads configuration initialized at startup.
 	// Each client owns a one-shot transport; release its pool after the body closes.
