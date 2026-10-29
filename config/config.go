@@ -9,8 +9,10 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"net"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/sethvargo/go-envconfig/v2"
@@ -86,6 +88,11 @@ type WebConfig struct {
 	Host   string `yaml:"host"   env:"HOST"`
 	APIKey string `yaml:"apiKey" env:"API_KEY"`
 	Port   int    `yaml:"port"   env:"PORT"`
+}
+
+// Address returns the configured HTTP listener address.
+func (cfg WebConfig) Address() string {
+	return net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
 }
 
 type LogConfig struct {

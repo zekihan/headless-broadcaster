@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -76,12 +75,12 @@ func main() {
 		http.Redirect(w, r, "/404", http.StatusMovedPermanently)
 	})
 
-	port := cfg.WebConfig.Port
-	host := cfg.WebConfig.Host
-	slog.InfoContext(context.Background(), fmt.Sprintf("Starting server on %s:%d", host, port))
+	slog.InfoContext(context.Background(), "Starting server",
+		slog.String("address", cfg.WebConfig.Address()),
+	)
 
 	srv := &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", host, port),
+		Addr:         cfg.WebConfig.Address(),
 		Handler:      stdChain.Then(http.DefaultServeMux),
 		ReadTimeout:  defaultTimeout,
 		WriteTimeout: defaultTimeout,
