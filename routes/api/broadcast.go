@@ -8,7 +8,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 
+	"github.com/zekihan/headless-broadcaster/config"
 	"github.com/zekihan/headless-broadcaster/internal/commons/web"
 	"github.com/zekihan/headless-broadcaster/proxy"
 )
@@ -61,7 +63,21 @@ func broadcast(
 	if r.Body != nil {
 		defer r.Body.Close()
 
-		body, err = io.ReadAll(r.Body)
+		limit := config.GetConfig().ProxyConfig.MaxRequestBodyBytes //nolint:contextcheck // Startup configuration.
+		if r.ContentLength > limit {
+			http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
+
+			return
+		}
+
+		body, err = io.ReadAll(http.MaxBytesReader(w, r.Body, limit))
+
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+			http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
+
+			return
+		}
+
 		if web.CheckError(
 			r.Context(),
 			w,
@@ -73,7 +89,10 @@ func broadcast(
 		}
 	}
 
-	headers := r.Header.Clone()
+	headers := upstreamHeaders(
+		r,
+		config.GetConfig().WebConfig.APIKey, //nolint:contextcheck // Startup configuration.
+	)
 
 	results := make([]*proxy.Result, 0)
 
@@ -110,6 +129,73 @@ func broadcast(
 	}
 
 	web.Write(r.Context(), w, resultBytes)
+}
+
+// upstreamHeaders removes reserved broadcaster credentials, preserving downstream auth.
+func upstreamHeaders(r *http.Request, apiKey string) http.Header {
+	headers := r.Header.Clone()
+	headers.Del("X-Api-Key")
+	// Filter raw cookie pairs rather than reserializing all cookies: preserve repeated
+	// application cookies and their header lines whenever no reserved cookie is present.
+	for i, line := range headers.Values("Cookie") {
+		parts := strings.Split(line, ";")
+		kept := make([]string, 0, len(parts))
+		removed := false
+
+		for _, part := range parts {
+			name, _, _ := strings.Cut(strings.TrimSpace(part), "=")
+			if strings.TrimSpace(name) == "apiKey" {
+				removed = true
+
+				continue
+			}
+
+			kept = append(kept, part)
+		}
+
+		if removed {
+			headers["Cookie"][i] = strings.TrimSpace(strings.Join(kept, ";"))
+		}
+	}
+
+	cookies := headers.Values("Cookie")
+	if cookies != nil {
+		kept := cookies[:0]
+		for _, line := range cookies {
+			if line != "" {
+				kept = append(kept, line)
+			}
+		}
+
+		if len(kept) == 0 {
+			headers.Del("Cookie")
+		} else {
+			headers["Cookie"] = kept
+		}
+	}
+	// Basic is also a broadcaster carrier. Strip a matching password even when
+	// a higher-priority carrier authenticated the request; preserve distinct auth.
+	if apiKey != "" {
+		authValues := headers.Values("Authorization")
+
+		kept := authValues[:0]
+		for _, value := range authValues {
+			authRequest := &http.Request{Header: http.Header{"Authorization": {value}}}
+
+			_, password, ok := authRequest.BasicAuth()
+			if !ok || strings.TrimSpace(password) != apiKey {
+				kept = append(kept, value)
+			}
+		}
+
+		if len(kept) == 0 {
+			headers.Del("Authorization")
+		} else {
+			headers["Authorization"] = kept
+		}
+	}
+
+	return headers
 }
 
 type Result struct {
