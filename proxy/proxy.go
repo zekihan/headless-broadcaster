@@ -25,7 +25,7 @@ func RequestToIP(
 	parsedURL *url.URL,
 	method string,
 	body []byte,
-	headers map[string]string,
+	headers http.Header,
 ) (*Result, error) {
 	result := Result{IP: ip}
 	slog.DebugContext(ctx, "Proxying request",
@@ -44,9 +44,7 @@ func RequestToIP(
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
-	for key, value := range headers {
-		request.Header.Set(key, value)
-	}
+	request.Header = headers.Clone()
 
 	client := getHTTPClient(ip)
 	// Each client owns a one-shot transport; release its pool after the body closes.
