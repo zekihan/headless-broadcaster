@@ -73,10 +73,7 @@ func broadcast(
 		}
 	}
 
-	headers := make(map[string]string)
-	for key, values := range r.Header {
-		headers[key] = values[0]
-	}
+	headers := r.Header.Clone()
 
 	results := make([]*proxy.Result, 0)
 

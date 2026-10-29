@@ -227,8 +227,8 @@ func TestRequestToIP_Header(t *testing.T) {
 		ip = pathURL.Host // Handle cases where no port is present
 	}
 
-	res, err := RequestToIP(t.Context(), ip, pathURL, http.MethodGet, nil, map[string]string{
-		"X-Custom-Header": "test-value",
+	res, err := RequestToIP(t.Context(), ip, pathURL, http.MethodGet, nil, http.Header{
+		"X-Custom-Header": {"test-value"},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

@@ -1,10 +1,12 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"testing"
 
 	"github.com/zekihan/headless-broadcaster/proxy"
@@ -195,5 +197,62 @@ func TestBroadcast(t *testing.T) {
 
 	if result.Counts.Failed != 0 {
 		t.Errorf("expected all requests to succeed, but failed=%d", result.Counts.Failed)
+	}
+}
+
+func TestBroadcastPreservesHeaders(t *testing.T) {
+	for name, cookies := range map[string][]string{"multiple": {"a=1", "b=2"}, "single": {"a=1"}} {
+		t.Run(name, func(t *testing.T) {
+			var received []http.Header
+
+			server := httptest.NewServer(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					received = append(received, r.Header.Clone())
+					r.Header.Set("X-Tag", "changed")
+					w.WriteHeader(http.StatusOK)
+				}),
+			)
+			defer server.Close()
+
+			req := httptest.NewRequestWithContext(
+				t.Context(),
+				http.MethodGet,
+				"/?url="+url.QueryEscape(server.URL),
+				http.NoBody,
+			)
+			req.Header["X-Tag"] = []string{"first", "second"}
+
+			req.Header["Cookie"] = append([]string(nil), cookies...)
+			req.Header["X-Empty"] = []string{}
+			req.Header["X-Nil"] = nil
+			original := req.Header.Clone()
+			rr := httptest.NewRecorder()
+			broadcast(rr, req, func(context.Context, string) ([]string, error) {
+				return []string{"127.0.0.1", "127.0.0.1"}, nil
+			})
+
+			if rr.Code != http.StatusOK || len(received) != 2 {
+				t.Fatalf(
+					"status %d, received %d requests: %s",
+					rr.Code,
+					len(received),
+					rr.Body.String(),
+				)
+			}
+
+			for _, headers := range received {
+				if !reflect.DeepEqual(headers.Values("X-Tag"), []string{"first", "second"}) {
+					t.Errorf("X-Tag = %v", headers.Values("X-Tag"))
+				}
+
+				if !reflect.DeepEqual(headers.Values("Cookie"), cookies) {
+					t.Errorf("Cookie = %v, want %v", headers.Values("Cookie"), cookies)
+				}
+			}
+
+			if !reflect.DeepEqual(req.Header, original) {
+				t.Errorf("incoming headers changed: got %v, want %v", req.Header, original)
+			}
+		})
 	}
 }
