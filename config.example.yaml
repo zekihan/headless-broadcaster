@@ -1,0 +1,12 @@
+web:
+  host: "127.0.0.1"
+  port: 8080
+  apiKey: "" # Set a key before exposing the listener.
+log:
+  level: "warn"
+  addSource: false
+proxy:
+  maxRequestBodyBytes: 1048576 # 1 MiB; positive byte count, no unlimited mode.
+  maxResponseBodyBytes: 4194304 # 4 MiB per destination, after decompression.
+  caFile: "" # Optional PEM CA bundle, added to system roots.
+  insecureSkipVerify: false # Explicit compatibility opt-out; disables certificate/hostname verification.

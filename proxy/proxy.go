@@ -13,6 +13,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/zekihan/headless-broadcaster/config"
 )
 
 const (
@@ -46,7 +48,7 @@ func RequestToIP(
 
 	request.Header = headers.Clone()
 
-	client := getHTTPClient(ip)
+	client := getHTTPClient(ip) //nolint:contextcheck // Reads configuration initialized at startup.
 	// Each client owns a one-shot transport; release its pool after the body closes.
 	defer client.CloseIdleConnections()
 
@@ -72,7 +74,20 @@ func parseResponse(ctx context.Context, response *http.Response, result *Result)
 	result.StatusCode = response.StatusCode
 	defer response.Body.Close()
 
-	body, err := io.ReadAll(response.Body)
+	limit := config.GetConfig().ProxyConfig.MaxResponseBodyBytes //nolint:contextcheck // Startup configuration.
+	if response.ContentLength > limit {
+		result.Err = "upstream response body exceeds configured limit"
+
+		return
+	}
+
+	body, err := io.ReadAll(io.LimitReader(response.Body, limit+1))
+	if int64(len(body)) > limit {
+		result.Err = "upstream response body exceeds configured limit"
+
+		return
+	}
+
 	if err != nil {
 		slog.ErrorContext(ctx, "Error reading response body", slog.Any("error", err))
 		result.Err = err.Error()
@@ -106,7 +121,9 @@ func getHTTPClient(ip string) *http.Client {
 	client := http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true, //nolint:gosec // Ideally, this should be configurable by the user.
+				MinVersion:         tls.VersionTLS12,
+				RootCAs:            config.GetConfig().ProxyConfig.TLSRootCAs(),
+				InsecureSkipVerify: config.GetConfig().ProxyConfig.InsecureSkipVerify, //nolint:gosec // Explicit opt-out.
 			},
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				if strings.Contains(ip, ":") {

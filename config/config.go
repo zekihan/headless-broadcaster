@@ -3,6 +3,8 @@ package config
 
 import (
 	"context"
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -24,8 +26,60 @@ const (
 var config *Config
 
 type Config struct {
-	WebConfig WebConfig `yaml:"web" env:", prefix=WEB_"`
-	LogConfig LogConfig `yaml:"log" env:", prefix=LOG_"`
+	WebConfig   WebConfig   `yaml:"web"   env:", prefix=WEB_"`
+	LogConfig   LogConfig   `yaml:"log"   env:", prefix=LOG_"`
+	ProxyConfig ProxyConfig `yaml:"proxy" env:", prefix=PROXY_"`
+}
+
+const (
+	DefaultMaxRequestBodyBytes  int64 = 1 << 20
+	DefaultMaxResponseBodyBytes int64 = 4 << 20
+)
+
+var (
+	errInvalidProxyConfig = errors.New("proxy body limits must be positive and less than MaxInt64")
+	errInvalidCAFile      = errors.New("proxy CA file contains no certificates")
+)
+
+type ProxyConfig struct {
+	rootCAs              *x509.CertPool
+	CAFile               string `yaml:"caFile"               env:"CA_FILE"`
+	MaxRequestBodyBytes  int64  `yaml:"maxRequestBodyBytes"  env:"MAX_REQUEST_BODY_BYTES"`
+	MaxResponseBodyBytes int64  `yaml:"maxResponseBodyBytes" env:"MAX_RESPONSE_BODY_BYTES"`
+	InsecureSkipVerify   bool   `yaml:"insecureSkipVerify"   env:"INSECURE_SKIP_VERIFY"`
+}
+
+func (cfg *ProxyConfig) TLSRootCAs() *x509.CertPool { return cfg.rootCAs }
+
+// Validate loads additional trust without replacing the system roots.
+func (cfg *ProxyConfig) Validate() error {
+	const maxInt64 = int64(1<<63 - 1)
+	if cfg.MaxRequestBodyBytes <= 0 || cfg.MaxRequestBodyBytes == maxInt64 ||
+		cfg.MaxResponseBodyBytes <= 0 || cfg.MaxResponseBodyBytes == maxInt64 {
+		return errInvalidProxyConfig
+	}
+
+	if cfg.CAFile == "" {
+		return nil
+	}
+
+	pem, err := os.ReadFile(cfg.CAFile)
+	if err != nil {
+		return fmt.Errorf("read proxy CA file: %w", err)
+	}
+
+	roots, err := x509.SystemCertPool()
+	if err != nil {
+		return fmt.Errorf("load system trust: %w", err)
+	}
+
+	if !roots.AppendCertsFromPEM(pem) {
+		return errInvalidCAFile
+	}
+
+	cfg.rootCAs = roots
+
+	return nil
 }
 
 type WebConfig struct {
@@ -76,6 +130,11 @@ func GetConfig() *Config {
 			}
 
 			cfg.LogConfig.Level = level
+		}
+
+		err = cfg.ProxyConfig.Validate()
+		if err != nil {
+			log.Fatalf("Invalid proxy config: %v", err)
 		}
 
 		config = cfg
@@ -145,6 +204,10 @@ func getConfigFilePath() string {
 
 func GetDefaultConfig() *Config {
 	return &Config{
+		ProxyConfig: ProxyConfig{
+			MaxRequestBodyBytes:  DefaultMaxRequestBodyBytes,
+			MaxResponseBodyBytes: DefaultMaxResponseBodyBytes,
+		},
 		WebConfig: WebConfig{
 			Host:   "127.0.0.1",
 			Port:   defaultPort,
