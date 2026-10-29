@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"mime"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -108,6 +109,8 @@ func TestBroadcast_LocalResults(t *testing.T) {
 			)
 			broadcast(recorder, request, lookup)
 
+			assertJSONContentType(t, recorder)
+
 			var result Result
 
 			err = json.Unmarshal(recorder.Body.Bytes(), &result)
@@ -130,5 +133,90 @@ func TestBroadcast_LocalResults(t *testing.T) {
 				t.Fatalf("missing body read error: %+v", result.Results[0])
 			}
 		})
+	}
+}
+
+func TestBroadcast_PreservesJSONNumbers(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		body   string
+		status int
+	}{
+		{"large integer", `{"id":9007199254740993,"nested":[-9007199254740993]}`, http.StatusOK},
+		{"large exponent", `{"value":1e400}`, http.StatusOK},
+		{"error response", `{"id":9007199254740993}`, http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			backend := httptest.NewServer(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(tc.status)
+					_, _ = w.Write([]byte(tc.body))
+				}),
+			)
+			defer backend.Close()
+
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet,
+				"/?url="+url.QueryEscape(backend.URL), http.NoBody)
+			recorder := httptest.NewRecorder()
+			broadcast(recorder, request, func(context.Context, string) ([]string, error) {
+				return []string{"127.0.0.1"}, nil
+			})
+
+			var result struct {
+				Results []struct {
+					Err    string          `json:"err"`
+					Result json.RawMessage `json:"result"`
+				} `json:"results"`
+				Counts ResultCounts `json:"counts"`
+			}
+
+			err := json.Unmarshal(recorder.Body.Bytes(), &result)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if len(result.Results) != 1 {
+				t.Fatalf("results = %s", recorder.Body.String())
+			}
+
+			if string(result.Results[0].Result) != tc.body || result.Results[0].Err != "" {
+				t.Errorf(
+					"upstream JSON changed: result=%s err=%q; want %s",
+					result.Results[0].Result,
+					result.Results[0].Err,
+					tc.body,
+				)
+			}
+
+			wantStatus := http.StatusOK
+			wantCounts := ResultCounts{1, 1, 0}
+
+			if tc.status >= http.StatusMultipleChoices {
+				wantStatus = http.StatusInternalServerError
+				wantCounts = ResultCounts{1, 0, 1}
+			}
+
+			if recorder.Code != wantStatus || result.Counts != wantCounts {
+				t.Errorf(
+					"status=%d counts=%+v; want %d %+v",
+					recorder.Code,
+					result.Counts,
+					wantStatus,
+					wantCounts,
+				)
+			}
+		})
+	}
+}
+
+func assertJSONContentType(t *testing.T, recorder *httptest.ResponseRecorder) {
+	t.Helper()
+
+	response := recorder.Result()
+	defer response.Body.Close()
+
+	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		t.Errorf("Content-Type = %q; want application/json", response.Header.Get("Content-Type"))
 	}
 }

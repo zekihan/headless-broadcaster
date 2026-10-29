@@ -103,7 +103,10 @@ func parseResponse(ctx context.Context, response *http.Response, result *Result)
 
 	var jsonBody any
 
-	err = json.Unmarshal(body, &jsonBody)
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.UseNumber()
+
+	err = decoder.Decode(&jsonBody)
 	if err != nil {
 		slog.ErrorContext(ctx, "Error unmarshaling JSON response", slog.Any("error", err))
 		result.Err = err.Error()
