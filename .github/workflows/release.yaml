@@ -1,77 +1,83 @@
-name: Release
-on:
+name: Publish
+'on':
   push:
-    tags: ['v*']
+    tags:
+      - v*
+  schedule:
+    - cron: 38 3 * * *
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Rebuild unchanged edge inputs
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
-  group: release-${{ github.ref }}
+  group: publish-${{ github.repository }}
   cancel-in-progress: false
 jobs:
-  checks:
+  decide:
+    uses: zekihan/release-workflows/.github/workflows/decide.yaml@2f43b18296123d62f69e1cd3be25bc50f8de7645 # main
     permissions:
       contents: read
+      actions: read
+      packages: read
+    with:
+      mode: ${{ startsWith(github.ref, 'refs/tags/') && 'release' || 'edge' }}
+      image: headless-broadcaster
+      force: ${{ inputs.force || false }}
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  checks:
+    needs: decide
+    if: ${{ needs.decide.outputs.build == 'true' }}
     uses: ./.github/workflows/pr.yaml
-  binaries:
-    if: github.repository == 'zekihan/headless-broadcaster'
-    needs: checks
-    runs-on: ubuntu-latest
     permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version-file: go.mod
-      - run: ./scripts/release_version.sh
-      - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
-        with:
-          version: v2.19.0
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-  containers:
-    if: github.repository == 'zekihan/headless-broadcaster'
-    needs: [checks, binaries]
-    runs-on: ubuntu-latest
+      contents: read
+    with:
+      publishing: true
+  publish:
+    needs:
+      - decide
+      - checks
+    uses: zekihan/release-workflows/.github/workflows/image.yaml@2f43b18296123d62f69e1cd3be25bc50f8de7645 # main
     permissions:
       contents: read
       packages: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version-file: go.mod
-      - run: ./scripts/release_version.sh
-        id: version
-      - uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
-        with:
-          version: v2.19.0
-          args: build --clean --id docker
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ghcr.io/zekihan/headless-broadcaster:${{ github.ref_name }}
-            docker.io/zekihan/headless-broadcaster:${{ github.ref_name }}
-          labels: |
-            org.opencontainers.image.version=${{ github.ref_name }}
-            org.opencontainers.image.revision=${{ github.sha }}
+    with:
+      image: headless-broadcaster
+      mode: ${{ startsWith(github.ref, 'refs/tags/') && 'release' || 'edge' }}
+      version: ${{ needs.decide.outputs.version }}
+      fingerprint: ${{ needs.decide.outputs.fingerprint }}
+      qemu: false
+      prepare-command: |
+        if [[ "$MODE" == release ]]; then
+          goreleaser build --clean --id docker --skip=validate
+        else
+          RELEASE_VERSION=$(cat VERSION) goreleaser build --clean --id docker --snapshot
+        fi
+      goreleaser-version: v2.19.0
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  release:
+    needs:
+      - decide
+      - checks
+      - publish
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    uses: zekihan/release-workflows/.github/workflows/release.yaml@2f43b18296123d62f69e1cd3be25bc50f8de7645 # main
+    permissions:
+      contents: write
+      packages: write
+    with:
+      version: ${{ needs.decide.outputs.version }}
+      binaries: true
+      image: headless-broadcaster
+      image-digest: ${{ needs.publish.outputs.digest }}
+      goreleaser-version: v2.19.0
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}

@@ -78,10 +78,10 @@ build/release/all:
 build/release/docker:
 	goreleaser build --clean --id docker --skip=validate
 
-# release: build the binary and create a release
+# release: prepare local release artifacts without publishing
 .PHONY: release
 release:
-	goreleaser release --clean
+	goreleaser release --clean --skip=publish,announce
 
 # new_version: create a new version
 .PHONY: new_version
