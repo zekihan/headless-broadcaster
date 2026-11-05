@@ -20,6 +20,8 @@ FROM scratch AS final
 
 COPY --from=builder /usr/bin/headless-broadcaster /usr/bin/headless-broadcaster
 
+USER 25110:25110
+
 ENTRYPOINT ["/usr/bin/headless-broadcaster"]
 
 LABEL org.opencontainers.image.source="https://github.com/zekihan/headless-broadcaster" \
