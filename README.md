@@ -86,9 +86,11 @@ Publishing and manual recovery: [Publishing](docs/publishing.md).
 
 ### Running with Docker Compose
 
-Copy `config.example.yaml` to `config.yaml`, then run
-`HB__WEB_API_KEY=your-secret-key docker compose up -d --build` after
-`make build/docker`. Compose binds the listener to `0.0.0.0:8080` inside the
+Copy `config.example.yaml` to `config.yaml`, then run `make build/docker`.
+Export `HB__WEB_API_KEY` in your shell (for example,
+`export HB__WEB_API_KEY=your-secret-key`) before running
+`docker compose up -d --build`. Keep it exported for subsequent Compose commands,
+including `docker compose down`. Compose binds the listener to `0.0.0.0:8080` inside the
 container and publishes port 8080. Set a strong API key before exposing it.
 The container runs as UID/GID `25110:25110`; mounted configuration and CA files
 must be readable by that user. Application listener defaults remain unchanged.
