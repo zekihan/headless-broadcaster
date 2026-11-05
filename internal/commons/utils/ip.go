@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 )
 
@@ -68,9 +69,9 @@ func getIPFromRemoteAddr(r *http.Request) (string, error) {
 		return "", fmt.Errorf("failed to split remote address: %w", err)
 	}
 
-	netIP := net.ParseIP(ip)
-	if netIP != nil {
-		ip := netIP.String()
+	netIP, err := netip.ParseAddr(ip)
+	if err == nil {
+		ip := netIP.WithZone("").Unmap().String()
 		if ip == "::1" {
 			return "127.0.0.1", nil
 		}
