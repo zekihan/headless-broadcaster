@@ -5,6 +5,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      HB__WEB_HOST: 0.0.0.0
+      # Set a key before exposing the broadcaster.
+      HB__WEB_API_KEY: ${HB__WEB_API_KEY:?Set HB__WEB_API_KEY before exposing the broadcaster}
     ports:
       - "8080:8080"
     volumes:
