@@ -69,7 +69,12 @@ func TestProxyConfigFileAndEnvironment(t *testing.T) {
 
 	t.Setenv("CONFIG_PATH", file)
 
-	cfg := GetConfigFromFile().ProxyConfig
+	loaded, err := GetConfigFromFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := loaded.ProxyConfig
 	if cfg.MaxRequestBodyBytes != 123 || cfg.MaxResponseBodyBytes != 456 ||
 		!cfg.InsecureSkipVerify {
 		t.Fatalf("YAML: %+v", cfg)
@@ -79,7 +84,12 @@ func TestProxyConfigFileAndEnvironment(t *testing.T) {
 	t.Setenv("HB__PROXY_MAX_RESPONSE_BODY_BYTES", "987")
 	t.Setenv("HB__PROXY_INSECURE_SKIP_VERIFY", "false")
 
-	cfg = GetConfig().ProxyConfig
+	loaded, err = GetConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg = loaded.ProxyConfig
 	if cfg.MaxRequestBodyBytes != 789 || cfg.MaxResponseBodyBytes != 987 || cfg.InsecureSkipVerify {
 		t.Fatalf("env: %+v", cfg)
 	}

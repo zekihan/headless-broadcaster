@@ -51,7 +51,15 @@ func RequestToIP(
 	// decode gzip itself. Forwarding Accept-Encoding disables automatic decoding.
 	request.Header.Del("Accept-Encoding")
 
-	client := getHTTPClient(ip) //nolint:contextcheck // Reads configuration initialized at startup.
+	cfg, err := config.GetConfig() //nolint:contextcheck // Startup configuration.
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+
+	client := getHTTPClient(
+		ip,
+		cfg,
+	)
 	// Each client owns a one-shot transport; release its pool after the body closes.
 	defer client.CloseIdleConnections()
 
@@ -67,17 +75,22 @@ func RequestToIP(
 	}
 
 	if response != nil {
-		parseResponse(ctx, response, &result)
+		parseResponse(ctx, response, &result, cfg)
 	}
 
 	return &result, nil
 }
 
-func parseResponse(ctx context.Context, response *http.Response, result *Result) {
+func parseResponse(
+	ctx context.Context,
+	response *http.Response,
+	result *Result,
+	cfg *config.Config,
+) {
 	result.StatusCode = response.StatusCode
 	defer response.Body.Close()
 
-	limit := config.GetConfig().ProxyConfig.MaxResponseBodyBytes //nolint:contextcheck // Startup configuration.
+	limit := cfg.ProxyConfig.MaxResponseBodyBytes
 	if response.ContentLength > limit {
 		result.Err = "upstream response body exceeds configured limit"
 
@@ -118,7 +131,7 @@ func parseResponse(ctx context.Context, response *http.Response, result *Result)
 	}
 }
 
-func getHTTPClient(ip string) *http.Client {
+func getHTTPClient(ip string, cfg *config.Config) *http.Client {
 	dialer := &net.Dialer{
 		Timeout:   defaultTimeout,
 		KeepAlive: defaultTimeout,
@@ -128,8 +141,8 @@ func getHTTPClient(ip string) *http.Client {
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				MinVersion:         tls.VersionTLS12,
-				RootCAs:            config.GetConfig().ProxyConfig.TLSRootCAs(),
-				InsecureSkipVerify: config.GetConfig().ProxyConfig.InsecureSkipVerify, //nolint:gosec // Explicit opt-out.
+				RootCAs:            cfg.ProxyConfig.TLSRootCAs(),
+				InsecureSkipVerify: cfg.ProxyConfig.InsecureSkipVerify, //nolint:gosec // Explicit opt-out.
 			},
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				if strings.Contains(ip, ":") {

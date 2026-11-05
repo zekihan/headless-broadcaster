@@ -41,7 +41,11 @@ func init() {
 	}
 
 	// Init config.
-	cfg = config.GetConfig()
+	cfg, err = config.GetConfig()
+	if err != nil {
+		slog.ErrorContext(context.Background(), "Failed to load config", slog.Any("error", err))
+		os.Exit(1)
+	}
 
 	// Init logger.
 	utils.InitLogger(&utils.LoggerConfig{

@@ -194,12 +194,18 @@ func TestResponseBudgetStopsAndClosesUnknownBody(t *testing.T) {
 	proxyConfig(t)
 	t.Setenv("HB__PROXY_MAX_RESPONSE_BODY_BYTES", "8")
 
+	cfg, err := config.GetConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	body := &endlessBody{}
 	result := &Result{}
 	parseResponse(
 		t.Context(),
 		&http.Response{StatusCode: http.StatusOK, ContentLength: -1, Body: body},
 		result,
+		cfg,
 	)
 
 	if body.read != 9 || !body.closed || result.Err == "" || result.Result != nil {
