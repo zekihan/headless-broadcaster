@@ -75,6 +75,32 @@ func TestGetIP_RemoteAddr_IPv6Loopback(t *testing.T) {
 	}
 }
 
+func TestGetIP_RemoteAddr_IPv6Zone(t *testing.T) {
+	req := newReq(t.Context(), nil, "[fe80::1%eth0]:1234")
+
+	ip, err := GetIP(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if ip != "fe80::1" {
+		t.Errorf("got %q, want %q", ip, "fe80::1")
+	}
+}
+
+func TestGetIP_RemoteAddr_IPv4MappedIPv6(t *testing.T) {
+	req := newReq(t.Context(), nil, "[::ffff:192.0.2.1]:80")
+
+	ip, err := GetIP(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if ip != "192.0.2.1" {
+		t.Errorf("got %q, want %q", ip, "192.0.2.1")
+	}
+}
+
 func TestGetIP_InvalidRemoteAddr_NoPort(t *testing.T) {
 	// No headers and bad RemoteAddr.
 	req := newReq(t.Context(), nil, "badaddr")
