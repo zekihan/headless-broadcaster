@@ -18,7 +18,7 @@ request URLs can appear in logs.
 
 Run `make lint test build` and `goreleaser check` to validate changes.
 `VERSION` and the release tag must agree. Releases publish binaries and
-containers for Docker Hub and GHCR; only tag pushes publish artifacts.
+stable containers for Docker Hub and GHCR. Nightly/manual runs publish `edge`.
 The release script creates a local commit and signed tag; publishing requires
 an explicit push.
 
@@ -81,3 +81,5 @@ Other destinations continue, and successful results remain in the aggregate
 response (HTTP 500 when any destination fails). Cancellation and the 30-second
 per-destination timeout still interrupt outbound body reads. These are per-body
 bounds; total aggregate size still scales with the number of resolved addresses.
+
+Publishing and manual recovery: [Publishing](docs/publishing.md).
