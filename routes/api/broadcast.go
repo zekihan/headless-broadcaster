@@ -69,12 +69,23 @@ func broadcast(
 		return
 	}
 
+	cfg, err := config.GetConfig() //nolint:contextcheck // Startup configuration.
+	if web.CheckError(
+		r.Context(),
+		w,
+		err,
+		http.StatusInternalServerError,
+		"Failed to load config",
+	) {
+		return
+	}
+
 	var body []byte
 
 	if r.Body != nil {
 		defer r.Body.Close()
 
-		limit := config.GetConfig().ProxyConfig.MaxRequestBodyBytes //nolint:contextcheck // Startup configuration.
+		limit := cfg.ProxyConfig.MaxRequestBodyBytes
 		if r.ContentLength > limit {
 			http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
 
@@ -102,7 +113,7 @@ func broadcast(
 
 	headers := upstreamHeaders(
 		r,
-		config.GetConfig().WebConfig.APIKey, //nolint:contextcheck // Startup configuration.
+		cfg.WebConfig.APIKey,
 	)
 
 	results := make([]*proxy.Result, 0)

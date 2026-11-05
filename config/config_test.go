@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -45,7 +46,11 @@ func TestGetConfigFilePath(t *testing.T) {
 		custom := "/tmp/custom.yaml"
 		t.Setenv("CONFIG_PATH", custom)
 
-		got := getConfigFilePath()
+		got, err := getConfigFilePath()
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		if got != custom {
 			t.Errorf("expected %s, got %s", custom, got)
 		}
@@ -55,7 +60,10 @@ func TestGetConfigFilePath(t *testing.T) {
 		dir := t.TempDir()
 		t.Setenv("CONFIG_DIR", dir)
 
-		got := getConfigFilePath()
+		got, err := getConfigFilePath()
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		want := filepath.Join(dir, defaultConfigFile)
 		if got != want {
@@ -69,7 +77,10 @@ func TestGetConfigFilePath(t *testing.T) {
 		t.Setenv("CONFIG_PATH", "")
 		t.Chdir(tmpDir)
 
-		got := getConfigFilePath()
+		got, err := getConfigFilePath()
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		want := filepath.Join(tmpDir, defaultConfigFile)
 		if got != want {
@@ -109,7 +120,10 @@ log:
 
 	t.Setenv("CONFIG_PATH", tmpFile.Name())
 
-	cfg := GetConfigFromFile()
+	cfg, err := GetConfigFromFile()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if cfg.WebConfig.Host != "localhost" {
 		t.Errorf("expected host localhost, got %s", cfg.WebConfig.Host)
@@ -169,7 +183,11 @@ log:
 	t.Setenv(EnvKeyPrefix+"LOG_ADD_SOURCE", "true")
 	t.Setenv(EnvKeyPrefix+"LOG_PATH", "/env.log")
 
-	cfg := GetConfig()
+	cfg, err := GetConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if cfg.WebConfig.Host != "envhost" {
 		t.Errorf("expected env override host envhost, got %s", cfg.WebConfig.Host)
 	}
@@ -188,5 +206,81 @@ log:
 
 	if !cfg.LogConfig.AddSource {
 		t.Errorf("expected AddSource true, got %t", cfg.LogConfig.AddSource)
+	}
+}
+
+func TestConfigErrorsAndLevels(t *testing.T) {
+	tests := []struct {
+		name     string
+		file     string
+		envKey   string
+		envValue string
+		want     string
+		level    slog.Level
+	}{
+		{name: "missing defaults", level: slog.LevelWarn},
+		{name: "directory read", file: "directory", want: "is a directory"},
+		{name: "invalid yaml", file: "web: [", want: "parse config file"},
+		{
+			name:     "invalid env",
+			envKey:   "HB__WEB_PORT",
+			envValue: "not-a-number",
+			want:     "process env config",
+		},
+		{
+			name:     "invalid proxy",
+			envKey:   "HB__PROXY_MAX_REQUEST_BODY_BYTES",
+			envValue: "0",
+			want:     "invalid proxy config",
+		},
+		{name: "invalid level", envKey: "HB__LOG_LEVEL", envValue: "bogus", level: slog.LevelInfo},
+		{name: "debug", envKey: "HB__LOG_LEVEL", envValue: "DEBUG", level: slog.LevelDebug},
+		{name: "info", envKey: "HB__LOG_LEVEL", envValue: "info", level: slog.LevelInfo},
+		{name: "warning", envKey: "HB__LOG_LEVEL", envValue: "warning", level: slog.LevelWarn},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			Reset()
+			t.Cleanup(Reset)
+			dir := t.TempDir()
+
+			file := filepath.Join(dir, "config.yaml")
+			if tt.file == "directory" {
+				file = dir
+			} else if tt.file != "" {
+				err := os.WriteFile(file, []byte(tt.file), 0o600)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			t.Setenv("CONFIG_PATH", file)
+
+			if tt.envKey != "" {
+				t.Setenv(tt.envKey, tt.envValue)
+			}
+
+			cfg, err := GetConfig()
+			if tt.want != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.want) {
+					t.Fatalf("error = %v, want %q", err, tt.want)
+				}
+
+				return
+			}
+
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if cfg.LogConfig.Level != tt.level {
+				t.Fatalf("level = %v, want %v", cfg.LogConfig.Level, tt.level)
+			}
+
+			cached, err := GetConfig()
+			if err != nil || cached != cfg {
+				t.Fatalf("cached config = %v, error = %v", cached, err)
+			}
+		})
 	}
 }

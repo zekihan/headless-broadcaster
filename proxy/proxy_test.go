@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/zekihan/headless-broadcaster/config"
 )
 
 var errRead = errors.New("read error")
@@ -27,7 +29,7 @@ func TestParseResponse_JSON(t *testing.T) {
 		Body:       io.NopCloser(bytes.NewReader([]byte(body))),
 	}
 	result := &Result{}
-	parseResponse(t.Context(), resp, result)
+	parseResponse(t.Context(), resp, result, config.GetDefaultConfig())
 
 	if result.StatusCode != http.StatusCreated {
 		t.Errorf("expected status 201, got %d", result.StatusCode)
@@ -50,7 +52,7 @@ func TestParseResponse_Text(t *testing.T) {
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 	result := &Result{}
-	parseResponse(t.Context(), resp, result)
+	parseResponse(t.Context(), resp, result, config.GetDefaultConfig())
 
 	if result.StatusCode != http.StatusAccepted {
 		t.Errorf("expected status 202, got %d", result.StatusCode)
@@ -71,7 +73,7 @@ func TestParseResponse_ReadError(t *testing.T) {
 		Body:       errorReader{},
 	}
 	result := &Result{}
-	parseResponse(t.Context(), resp, result)
+	parseResponse(t.Context(), resp, result, config.GetDefaultConfig())
 
 	if result.StatusCode != http.StatusInternalServerError {
 		t.Errorf("expected status 500, got %d", result.StatusCode)

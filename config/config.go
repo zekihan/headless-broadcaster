@@ -1,4 +1,3 @@
-//nolint:forbidigo // This package configures log packages.
 package config
 
 import (
@@ -6,8 +5,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io"
-	"log"
 	"log/slog"
 	"net"
 	"os"
@@ -101,19 +98,22 @@ type LogConfig struct {
 	AddSource bool       `yaml:"addSource" env:"ADD_SOURCE"`
 }
 
-func GetConfig() *Config {
+func GetConfig() (*Config, error) {
 	if config == nil {
-		cfg := GetConfigFromFile()
+		cfg, err := GetConfigFromFile()
+		if err != nil {
+			return nil, err
+		}
 
 		ctx := context.Background()
 
-		err := envconfig.ProcessWith(ctx, &envconfig.Config{
+		err = envconfig.ProcessWith(ctx, &envconfig.Config{
 			Target:           cfg,
 			Lookuper:         envconfig.PrefixLookuper(EnvKeyPrefix, envconfig.OsLookuper()),
 			DefaultOverwrite: true,
 		})
 		if err != nil {
-			log.Fatalf("Failed to process env config: %v", err)
+			return nil, fmt.Errorf("process env config: %w", err)
 		}
 
 		if cfg.LogConfig.LevelStr != "" {
@@ -141,72 +141,62 @@ func GetConfig() *Config {
 
 		err = cfg.ProxyConfig.Validate()
 		if err != nil {
-			log.Fatalf("Invalid proxy config: %v", err)
+			return nil, fmt.Errorf("invalid proxy config: %w", err)
 		}
 
 		config = cfg
 	}
 
-	return config
+	return config, nil
 }
 
-func GetConfigFromFile() *Config {
+func GetConfigFromFile() (*Config, error) {
 	newConfig := GetDefaultConfig()
 
-	file, err := os.Open(getConfigFilePath())
+	configPath, err := getConfigFilePath()
+	if err != nil {
+		return nil, err
+	}
+
+	content, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Printf("Config file not found at %s, using default config", getConfigFilePath())
+			slog.Info(
+				"Config file not found, using default config",
+				slog.String("path", configPath),
+			)
 
-			return newConfig
+			return newConfig, nil
 		}
 
-		log.Fatalf("Failed to open config file: %v", err)
-	}
-	defer func(file *os.File) {
-		fileErr := file.Close()
-		if fileErr != nil {
-			fmt.Printf("Failed to close config file: %v", fileErr)
-		}
-	}(file)
-
-	content, err := io.ReadAll(file)
-	if err != nil {
-		fileErr := file.Close()
-		if fileErr != nil {
-			fmt.Printf("Failed to close config file after read error: %v", fileErr)
-		}
-
-		log.Fatalf("Failed to read config file: %v", fileErr) //nolint:gocritic
+		return nil, fmt.Errorf("read config file: %w", err)
 	}
 
 	err = yaml.Unmarshal(content, newConfig)
 	if err != nil {
-		log.Fatalf("Failed to parse config file: %v", err)
+		return nil, fmt.Errorf("parse config file: %w", err)
 	}
 
-	return newConfig
+	return newConfig, nil
 }
 
-func getConfigFilePath() string {
+func getConfigFilePath() (string, error) {
 	configPath := os.Getenv("CONFIG_PATH")
 	if configPath != "" {
-		return configPath
+		return configPath, nil
 	}
 
 	configDir := os.Getenv("CONFIG_DIR")
 	if configDir == "" {
 		cwd, err := os.Getwd()
 		if err != nil {
-			log.Fatalf("%v", err)
+			return "", fmt.Errorf("get working directory: %w", err)
 		}
 
 		configDir = cwd
 	}
 
-	configPath = path.Join(configDir, defaultConfigFile)
-
-	return configPath
+	return path.Join(configDir, defaultConfigFile), nil
 }
 
 func GetDefaultConfig() *Config {
