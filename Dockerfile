@@ -2,6 +2,8 @@ FROM --platform=$BUILDPLATFORM busybox:1.38.0@sha256:a46257e06c82ad85242d0d38077
 
 ARG TARGETPLATFORM
 
+WORKDIR /build
+
 COPY ./dist ./dist
 
 RUN case ${TARGETPLATFORM} in \
@@ -14,7 +16,7 @@ RUN case ${TARGETPLATFORM} in \
         "linux/arm/v7")   ARCH="armv7"   ;; \
         "linux/arm/v6")   ARCH="armv6"   ;; \
     esac && \
-    mv ./dist/headless-broadcaster_linux_${ARCH}/headless-broadcaster /usr/bin/headless-broadcaster
+    mv "./dist/headless-broadcaster_linux_${ARCH}/headless-broadcaster" /usr/bin/headless-broadcaster
 
 FROM scratch AS final
 
