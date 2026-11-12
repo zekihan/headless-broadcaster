@@ -1,6 +1,6 @@
 module github.com/zekihan/headless-broadcaster
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/felixge/httpsnoop v1.1.0
